@@ -1,24 +1,31 @@
-name: ci
+name: test
 
 on:
   push:
+    branches: ['**']
   pull_request:
+  workflow_call:
+
+permissions: {}
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: vscode-ant
-      - uses: actions/checkout@v4
+          persist-credentials: false
+      - uses: actions/checkout@v5
         with:
           repository: ant-src/ant
           path: ant
-      - uses: actions/setup-node@v4
+          persist-credentials: false
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - uses: actions/setup-go@v5
+          package-manager-cache: false
+      - uses: actions/setup-go@v6
         with:
           go-version: stable
           cache: false

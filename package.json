@@ -3,7 +3,7 @@
   "displayName": "Ant",
   "description": "Ant language support: highlighting, editing defaults, and the ant language server.",
   "version": "0.1.0",
-  "publisher": "ant-src",
+  "publisher": "ant-lang",
   "license": "MIT",
   "repository": {
     "type": "git",
