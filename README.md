@@ -30,4 +30,4 @@ npm run package           # builds the .vsix
 ```
 
 To release, run `npm version patch && git push --follow-tags`. CI attaches `ant.vsix` to a GitHub
-release; upload it at https://marketplace.visualstudio.com/manage.
+release and publishes it to the Marketplace.
