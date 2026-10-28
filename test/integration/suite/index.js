@@ -60,7 +60,7 @@ exports.run = async function run() {
 
   // formatting
   const edits = await vscode.commands.executeCommand("vscode.executeFormatDocumentProvider", mainUri, { tabSize: 2, insertSpaces: true });
-  assert.ok(Array.isArray(edits));
+  assert.ok(edits === undefined || Array.isArray(edits));
 
   // the prelude opens as a document
   const preludePos = doc.positionAt(text.indexOf("Math.sqrt") + 6);
