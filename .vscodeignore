@@ -3,14 +3,5 @@
 .github/**
 src/**
 test/**
-node_modules/**
-!node_modules/vscode-languageclient/**
-!node_modules/vscode-languageserver-protocol/**
-!node_modules/vscode-languageserver-types/**
-!node_modules/vscode-jsonrpc/**
-!node_modules/semver/**
-!node_modules/minimatch/**
-!node_modules/brace-expansion/**
-!node_modules/balanced-match/**
 tsconfig.json
 **/*.map

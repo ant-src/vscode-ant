@@ -169,6 +169,20 @@
           "message": 4
         }
       }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "ant",
+        "required": [
+          "file"
+        ],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "The .ant file to run."
+          }
+        }
+      }
     ]
   },
   "scripts": {

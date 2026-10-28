@@ -196,6 +196,9 @@
           "include": "#markup-fragment-start"
         },
         {
+          "include": "#markup-raw-start"
+        },
+        {
           "include": "#markup-element-start"
         }
       ]
@@ -228,21 +231,7 @@
       },
       "patterns": [
         {
-          "begin": "\\G",
-          "end": "(?=/>)|(>)",
-          "endCaptures": {
-            "1": {
-              "name": "punctuation.definition.tag.end.ant"
-            }
-          },
-          "patterns": [
-            {
-              "include": "#markup-attributes"
-            }
-          ]
-        },
-        {
-          "include": "#markup-raw-text"
+          "include": "#markup-start-tag"
         },
         {
           "include": "#markup-element"
@@ -319,18 +308,7 @@
           },
           "patterns": [
             {
-              "begin": "\\G",
-              "end": "(?=/>)|(>)",
-              "endCaptures": {
-                "1": {
-                  "name": "punctuation.definition.tag.end.ant"
-                }
-              },
-              "patterns": [
-                {
-                  "include": "#markup-attributes"
-                }
-              ]
+              "include": "#markup-start-tag"
             },
             {
               "begin": "(?<=>)",
@@ -372,18 +350,7 @@
           },
           "patterns": [
             {
-              "begin": "\\G",
-              "end": "(?=/>)|(>)",
-              "endCaptures": {
-                "1": {
-                  "name": "punctuation.definition.tag.end.ant"
-                }
-              },
-              "patterns": [
-                {
-                  "include": "#markup-attributes"
-                }
-              ]
+              "include": "#markup-start-tag"
             },
             {
               "begin": "(?<=>)",
@@ -425,18 +392,7 @@
           },
           "patterns": [
             {
-              "begin": "\\G",
-              "end": "(?=/>)|(>)",
-              "endCaptures": {
-                "1": {
-                  "name": "punctuation.definition.tag.end.ant"
-                }
-              },
-              "patterns": [
-                {
-                  "include": "#markup-attributes"
-                }
-              ]
+              "include": "#markup-start-tag"
             },
             {
               "include": "#markup-element"
@@ -454,9 +410,6 @@
           ]
         }
       ]
-    },
-    "markup-raw-text": {
-      "patterns": []
     },
     "markup-attributes": {
       "patterns": [
@@ -740,6 +693,108 @@
     "identifiers": {
       "match": "\\b[A-Za-z_]\\w*\\b",
       "name": "variable.other.ant"
+    },
+    "markup-start-tag": {
+      "begin": "\\G",
+      "end": "(?=/>)|(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.end.ant"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#markup-attributes"
+        }
+      ]
+    },
+    "markup-raw-start": {
+      "patterns": [
+        {
+          "begin": "(?:(?<=[=(,\\[{|:?!&>])|(?<=^)|(?<=\\breturn))\\s*(<)(script)\\b",
+          "end": "(</)(script)\\s*(>)|(/>)",
+          "name": "meta.markup.element.ant",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.ant"
+            },
+            "2": {
+              "name": "entity.name.tag.ant"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.ant"
+            },
+            "2": {
+              "name": "entity.name.tag.ant"
+            },
+            "3": {
+              "name": "punctuation.definition.tag.end.ant"
+            },
+            "4": {
+              "name": "punctuation.definition.tag.end.ant"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#markup-start-tag"
+            },
+            {
+              "begin": "(?<=>)",
+              "end": "(?=</script)",
+              "contentName": "meta.embedded.block.javascript",
+              "patterns": [
+                {
+                  "include": "source.js"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "begin": "(?:(?<=[=(,\\[{|:?!&>])|(?<=^)|(?<=\\breturn))\\s*(<)(style)\\b",
+          "end": "(</)(style)\\s*(>)|(/>)",
+          "name": "meta.markup.element.ant",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.ant"
+            },
+            "2": {
+              "name": "entity.name.tag.ant"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.ant"
+            },
+            "2": {
+              "name": "entity.name.tag.ant"
+            },
+            "3": {
+              "name": "punctuation.definition.tag.end.ant"
+            },
+            "4": {
+              "name": "punctuation.definition.tag.end.ant"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#markup-start-tag"
+            },
+            {
+              "begin": "(?<=>)",
+              "end": "(?=</style)",
+              "contentName": "meta.embedded.block.css",
+              "patterns": [
+                {
+                  "include": "source.css"
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   }
 }

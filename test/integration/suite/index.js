@@ -22,6 +22,16 @@ async function until(check, what, timeout = 20000) {
   }
 }
 
+// applyEdits applies text edits to a document's text, last first.
+function applyEdits(doc, edits) {
+  let text = doc.getText();
+  const sorted = [...edits].sort((a, b) => doc.offsetAt(b.range.start) - doc.offsetAt(a.range.start));
+  for (const e of sorted) {
+    text = text.slice(0, doc.offsetAt(e.range.start)) + e.newText + text.slice(doc.offsetAt(e.range.end));
+  }
+  return text;
+}
+
 exports.run = async function run() {
   await vscode.workspace.getConfiguration("ant").update("path", process.env.ANT_BIN, vscode.ConfigurationTarget.Global);
   const folder = vscode.workspace.workspaceFolders[0].uri.fsPath;
@@ -58,9 +68,13 @@ exports.run = async function run() {
   const symbols = await vscode.commands.executeCommand("vscode.executeDocumentSymbolProvider", mainUri);
   assert.ok(symbols.some((s) => s.name === "main"), symbols.map((s) => s.name).join(","));
 
-  // formatting
-  const edits = await vscode.commands.executeCommand("vscode.executeFormatDocumentProvider", mainUri, { tabSize: 2, insertSpaces: true });
-  assert.ok(edits === undefined || Array.isArray(edits));
+  // formatting rewrites a mis-formatted file through ant fmt
+  const uglyUri = vscode.Uri.file(path.join(folder, "ugly.ant"));
+  await vscode.workspace.openTextDocument(uglyUri);
+  const edits = await until(() => vscode.commands.executeCommand("vscode.executeFormatDocumentProvider", uglyUri, { tabSize: 2, insertSpaces: true }).then((e) => (e && e.length ? e : null)), "formatting edits");
+  const ugly = await vscode.workspace.openTextDocument(uglyUri);
+  const formatted = applyEdits(ugly, edits);
+  assert.equal(formatted, "func f(a: int): int {\n  a + 1\n}\n");
 
   // the prelude opens as a document
   const preludePos = doc.positionAt(text.indexOf("Math.sqrt") + 6);

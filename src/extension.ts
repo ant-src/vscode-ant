@@ -2,6 +2,7 @@ import * as cp from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { promisify } from "util";
 import * as vscode from "vscode";
 import {
   LanguageClient,
@@ -9,14 +10,23 @@ import {
   ServerOptions,
 } from "vscode-languageclient/node";
 
+const execFile = promisify(cp.execFile);
+
 let client: LanguageClient | undefined;
 let output: vscode.OutputChannel;
+let watcher: vscode.FileSystemWatcher;
+// lifecycle serializes starts and stops, so that two restarts in a row leave one server.
+let lifecycle: Promise<void> = Promise.resolve();
+// antPath caches where ant was found, until ant.path changes.
+let antPath: string | undefined | null = null;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   output = vscode.window.createOutputChannel("Ant");
-  context.subscriptions.push(output);
+  watcher = vscode.workspace.createFileSystemWatcher("**/*.ant");
   context.subscriptions.push(
-    vscode.commands.registerCommand("ant.restartServer", () => restart(context)),
+    output,
+    watcher,
+    vscode.commands.registerCommand("ant.restartServer", () => restart()),
     vscode.commands.registerCommand("ant.showOutput", () => output.show()),
     vscode.commands.registerCommand("ant.runFile", runFile),
     vscode.workspace.registerTextDocumentContentProvider("ant", {
@@ -29,28 +39,47 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("ant.path")) {
-        restart(context);
+        antPath = null;
+        restart();
       }
     }),
+    { dispose: () => void stop() },
   );
-  await start(context);
+  await restart();
 }
 
 export async function deactivate(): Promise<void> {
   await stop();
 }
 
-async function start(context: vscode.ExtensionContext): Promise<void> {
-  const ant = findAnt();
+// restart stops the running client, if any, and starts one; calls queue up behind each other.
+function restart(): Promise<void> {
+  lifecycle = lifecycle.then(stopClient).then(startClient).catch((err) => {
+    output.appendLine(`restart failed: ${err}`);
+  });
+  return lifecycle;
+}
+
+function stop(): Promise<void> {
+  lifecycle = lifecycle.then(stopClient);
+  return lifecycle;
+}
+
+async function startClient(): Promise<void> {
+  const ant = await findAnt();
   if (!ant) {
     const install = "How to install";
-    const choice = await vscode.window.showErrorMessage(
-      "The ant executable was not found. Set ant.path, or install it with: go install github.com/ant-src/ant/cmd/ant@latest",
-      install,
-    );
-    if (choice === install) {
-      vscode.env.openExternal(vscode.Uri.parse("https://github.com/ant-src/ant#install"));
-    }
+    // not awaited: the notification has an action, so it stays until dismissed
+    void vscode.window
+      .showErrorMessage(
+        "The ant executable was not found. Set ant.path, or install it with: go install github.com/ant-src/ant/cmd/ant@latest",
+        install,
+      )
+      .then((choice) => {
+        if (choice === install) {
+          vscode.env.openExternal(vscode.Uri.parse("https://github.com/ant-src/ant#install"));
+        }
+      });
     return;
   }
   output.appendLine(`starting ${ant} lsp`);
@@ -60,36 +89,41 @@ async function start(context: vscode.ExtensionContext): Promise<void> {
       { scheme: "file", language: "ant" },
       { scheme: "ant", language: "ant" },
     ],
-    synchronize: { fileEvents: vscode.workspace.createFileSystemWatcher("**/*.ant") },
+    synchronize: { fileEvents: watcher },
     outputChannel: output,
     traceOutputChannel: output,
   };
-  client = new LanguageClient("ant", "Ant", serverOptions, clientOptions);
-  context.subscriptions.push(client);
+  const c = new LanguageClient("ant", "Ant", serverOptions, clientOptions);
   try {
-    await client.start();
+    await c.start();
+    client = c;
   } catch (err) {
     output.appendLine(`the server did not start: ${err}`);
     vscode.window.showErrorMessage(`The Ant language server did not start: ${err}`);
+    await c.dispose();
   }
 }
 
-async function stop(): Promise<void> {
+async function stopClient(): Promise<void> {
   if (client) {
     const c = client;
     client = undefined;
     await c.stop();
+    await c.dispose();
   }
 }
 
-async function restart(context: vscode.ExtensionContext): Promise<void> {
-  await stop();
-  await start(context);
+// findAnt locates the ant executable: the ant.path setting, then ant on PATH, then $GOBIN, then
+// the bin directory of go env GOPATH, then ~/go/bin. The result is kept until ant.path changes.
+async function findAnt(): Promise<string | undefined> {
+  if (antPath !== null) {
+    return antPath;
+  }
+  antPath = await locateAnt();
+  return antPath;
 }
 
-// findAnt locates the ant executable: the ant.path setting, then ant on PATH, then $GOBIN, then
-// the bin directory of go env GOPATH, then ~/go/bin.
-function findAnt(): string | undefined {
+async function locateAnt(): Promise<string | undefined> {
   const configured = vscode.workspace.getConfiguration("ant").get<string>("path");
   if (configured) {
     return configured;
@@ -105,7 +139,8 @@ function findAnt(): string | undefined {
     return path.join(process.env.GOBIN, exe);
   }
   try {
-    const gopath = cp.execFileSync("go", ["env", "GOPATH"], { encoding: "utf8", timeout: 5000 }).trim();
+    const { stdout } = await execFile("go", ["env", "GOPATH"], { encoding: "utf8", timeout: 5000 });
+    const gopath = stdout.trim();
     if (gopath && isExecutable(path.join(gopath, "bin", exe))) {
       return path.join(gopath, "bin", exe);
     }
@@ -128,7 +163,8 @@ function isExecutable(file: string): boolean {
   }
 }
 
-// runFile saves the active Ant file and runs it with ant run in a terminal.
+// runFile saves the active Ant file and runs it with ant run as a task, whose shell quoting VS
+// Code does for the shell in use.
 async function runFile(): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor || editor.document.languageId !== "ant") {
@@ -139,14 +175,22 @@ async function runFile(): Promise<void> {
     vscode.window.showWarningMessage("Running a file needs a trusted workspace.");
     return;
   }
-  await editor.document.save();
-  const ant = findAnt() ?? "ant";
-  const terminal =
-    vscode.window.terminals.find((t) => t.name === "Ant") ?? vscode.window.createTerminal("Ant");
-  terminal.show();
-  terminal.sendText(`${quote(ant)} run ${quote(editor.document.uri.fsPath)}`);
-}
-
-function quote(s: string): string {
-  return /[\s"'`$\\]/.test(s) ? `"${s.replace(/(["\\$`])/g, "\\$1")}"` : s;
+  if (editor.document.uri.scheme !== "file") {
+    vscode.window.showInformationMessage("Save the file to run it.");
+    return;
+  }
+  if (editor.document.isDirty && !(await editor.document.save())) {
+    return;
+  }
+  const ant = (await findAnt()) ?? "ant";
+  const file = editor.document.uri.fsPath;
+  const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+  const execution = new vscode.ShellExecution(
+    { value: ant, quoting: vscode.ShellQuoting.Strong },
+    ["run", { value: file, quoting: vscode.ShellQuoting.Strong }],
+    { cwd: folder?.uri.fsPath ?? path.dirname(file) },
+  );
+  const task = new vscode.Task({ type: "ant", file }, folder ?? vscode.TaskScope.Workspace, path.basename(file), "ant", execution, "$ant");
+  task.presentationOptions = { clear: true, focus: true };
+  await vscode.tasks.executeTask(task);
 }
