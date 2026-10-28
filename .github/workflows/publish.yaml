@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -33,12 +35,11 @@ jobs:
             echo "tag $GITHUB_REF_NAME does not match package.json version $version"
             exit 1
           fi
-      - name: marketplace
-        run: npx --yes @vscode/vsce publish --packagePath ant.vsix
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
       - name: release
         run: gh release create "$GITHUB_REF_NAME" ant.vsix --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+      - name: marketplace
+        if: env.VSCE_PAT != ''
+        run: npx --yes @vscode/vsce publish --packagePath ant.vsix
