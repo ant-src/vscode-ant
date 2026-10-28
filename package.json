@@ -1,5 +1,5 @@
 {
-  "name": "vscode-ant",
+  "name": "ant-lang",
   "displayName": "Ant",
   "description": "Ant language support: highlighting, editing defaults, and the ant language server.",
   "version": "0.1.2",
@@ -186,22 +186,21 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile -- --minify",
+    "compile": "tsc -p ./ --noEmit && esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.js",
+    "watch": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.js --sourcemap --watch",
     "test": "node --test test/grammar.test.mjs",
     "test:integration": "npm run compile && node test/integration/run.mjs",
     "package": "vsce package"
-  },
-  "dependencies": {
-    "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/vscode": "^1.90.0",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.28.2",
     "typescript": "^5.5.4",
+    "vscode-languageclient": "^9.0.1",
     "vscode-oniguruma": "^2.0.1",
     "vscode-textmate": "^9.1.0"
   }

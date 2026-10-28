@@ -5,3 +5,5 @@ src/**
 test/**
 tsconfig.json
 **/*.map
+.gitignore
+node_modules/**
