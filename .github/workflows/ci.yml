@@ -11,11 +11,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: vscode-ant
-      # ant lsp lives on the lsp branch until it lands on master; switch the ref then
       - uses: actions/checkout@v4
         with:
           repository: ant-src/ant
-          ref: lsp
           path: ant
       - uses: actions/setup-node@v4
         with:
