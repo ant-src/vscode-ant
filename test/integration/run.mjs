@@ -17,7 +17,7 @@ try {
   await runTests({
     extensionDevelopmentPath: root,
     extensionTestsPath: path.join(here, "suite", "index.js"),
-    launchArgs: [path.join(here, "fixture"), "--disable-extensions"],
+    launchArgs: [path.join(here, "fixture"), "--disable-extensions", "--disable-workspace-trust"],
     extensionTestsEnv: { ANT_BIN: ant },
   });
 } catch (err) {

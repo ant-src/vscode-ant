@@ -20,6 +20,15 @@ It finds `ant` on `PATH` or in your Go bin directory. Set `ant.path` to use anot
 - **Ant: Restart Language Server**
 - **Ant: Show Server Output**
 
+## Tasks
+
+A task of type `ant` in `tasks.json` runs a file with `ant run`, so it can be the default build task
+or have a keyboard shortcut:
+
+```json
+{ "type": "ant", "file": "main.ant", "label": "run main", "group": "build", "problemMatcher": "$ant" }
+```
+
 ## Development
 
 ```sh

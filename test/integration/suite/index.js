@@ -22,6 +22,24 @@ async function until(check, what, timeout = 20000) {
   }
 }
 
+// runTask starts a task through start and resolves with the exit status of the task named name.
+function runTask(start, name) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      ended.dispose();
+      reject(new Error(`timed out waiting for the task ${name}`));
+    }, 20000);
+    const ended = vscode.tasks.onDidEndTaskProcess((e) => {
+      if (e.execution.task.name === name) {
+        clearTimeout(timer);
+        ended.dispose();
+        resolve(e.exitCode);
+      }
+    });
+    start().then(undefined, reject);
+  });
+}
+
 // applyEdits applies text edits to a document's text, last first.
 function applyEdits(doc, edits) {
   let text = doc.getText();
@@ -83,4 +101,15 @@ exports.run = async function run() {
   assert.equal(preludeDefs[0].uri.scheme, "ant");
   const prelude = await vscode.workspace.openTextDocument(preludeDefs[0].uri);
   assert.ok(prelude.getText().includes("func Math.sqrt"), prelude.getText().slice(0, 100));
+
+  // a tasks.json task of type ant is resolved by the extension and runs its file
+  const tasks = await vscode.tasks.fetchTasks({ type: "ant" });
+  const hello = tasks.find((t) => t.name === "hello");
+  assert.ok(hello, `no hello task among ${tasks.map((t) => t.name).join(",")}`);
+  assert.equal(await runTask(() => vscode.tasks.executeTask(hello), "hello"), 0);
+
+  // Ant: Run File runs the active file as a task
+  const helloDoc = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(folder, "hello.ant")));
+  await vscode.window.showTextDocument(helloDoc);
+  assert.equal(await runTask(() => vscode.commands.executeCommand("ant.runFile"), "hello.ant"), 0);
 };

@@ -30,6 +30,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("ant.restartServer", () => restart()),
     vscode.commands.registerCommand("ant.showOutput", () => output.show()),
     vscode.commands.registerCommand("ant.runFile", runFile),
+    vscode.tasks.registerTaskProvider("ant", {
+      provideTasks: () => [],
+      resolveTask: (task) => resolveAntTask(task),
+    }),
     vscode.workspace.registerTextDocumentContentProvider("ant", {
       provideTextDocumentContent: async (uri) => {
         if (!client) {
@@ -163,8 +167,7 @@ function isExecutable(file: string): boolean {
   }
 }
 
-// runFile saves the active Ant file and runs it with ant run as a task, started as a process
-// with its arguments, so that no shell reads the path.
+// runFile saves the active Ant file and runs it as an ant task.
 async function runFile(): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor || editor.document.languageId !== "ant") {
@@ -182,11 +185,36 @@ async function runFile(): Promise<void> {
   if (editor.document.isDirty && !(await editor.document.save())) {
     return;
   }
-  const ant = (await findAnt()) ?? "ant";
   const file = editor.document.uri.fsPath;
   const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
-  const execution = new vscode.ProcessExecution(ant, ["run", file], { cwd: folder?.uri.fsPath ?? path.dirname(file) });
-  const task = new vscode.Task({ type: "ant", file }, folder ?? vscode.TaskScope.Workspace, path.basename(file), "ant", execution, "$ant");
+  const task = await antTask({ type: "ant", file }, folder ?? vscode.TaskScope.Workspace, path.basename(file));
   task.presentationOptions = { clear: true, focus: true };
   await vscode.tasks.executeTask(task);
+}
+
+// AntTaskDefinition is a task of type ant: the one in tasks.json, or the one Ant: Run File makes.
+interface AntTaskDefinition extends vscode.TaskDefinition {
+  type: "ant";
+  file: string; // the .ant file to run, relative to the workspace folder
+}
+
+// resolveAntTask gives a tasks.json task of type ant its execution, so that it runs, can be the
+// default build task, and can have a keyboard shortcut; it needs a file and a trusted workspace.
+async function resolveAntTask(task: vscode.Task): Promise<vscode.Task | undefined> {
+  const def = task.definition as AntTaskDefinition;
+  if (typeof def.file !== "string" || !def.file || !vscode.workspace.isTrusted) {
+    return undefined;
+  }
+  return antTask(def, task.scope ?? vscode.TaskScope.Workspace, task.name);
+}
+
+// antTask builds the task that runs a file with ant run, started as a process with its
+// arguments, so that no shell reads the path. A relative file is taken from the folder.
+async function antTask(def: AntTaskDefinition, scope: vscode.WorkspaceFolder | vscode.TaskScope, name: string): Promise<vscode.Task> {
+  const folder = typeof scope === "object" ? scope : undefined;
+  const cwd = folder?.uri.fsPath ?? (path.isAbsolute(def.file) ? path.dirname(def.file) : undefined);
+  const file = cwd ? path.resolve(cwd, def.file) : def.file;
+  const ant = (await findAnt()) ?? "ant";
+  const execution = new vscode.ProcessExecution(ant, ["run", file], cwd ? { cwd } : undefined);
+  return new vscode.Task(def, scope, name, "ant", execution, "$ant");
 }
