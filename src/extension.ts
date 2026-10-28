@@ -17,8 +17,9 @@ let output: vscode.OutputChannel;
 let watcher: vscode.FileSystemWatcher;
 // lifecycle serializes starts and stops, so that two restarts in a row leave one server.
 let lifecycle: Promise<void> = Promise.resolve();
-// antPath caches where ant was found, until ant.path changes.
-let antPath: string | undefined | null = null;
+// antPath caches where ant was found, until ant.path changes; a miss is not cached, so that an
+// ant installed later is found by the next restart.
+let antPath: string | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   output = vscode.window.createOutputChannel("Ant");
@@ -39,7 +40,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("ant.path")) {
-        antPath = null;
+        antPath = undefined;
         restart();
       }
     }),
@@ -116,10 +117,9 @@ async function stopClient(): Promise<void> {
 // findAnt locates the ant executable: the ant.path setting, then ant on PATH, then $GOBIN, then
 // the bin directory of go env GOPATH, then ~/go/bin. The result is kept until ant.path changes.
 async function findAnt(): Promise<string | undefined> {
-  if (antPath !== null) {
-    return antPath;
+  if (antPath === undefined) {
+    antPath = await locateAnt();
   }
-  antPath = await locateAnt();
   return antPath;
 }
 
@@ -163,8 +163,8 @@ function isExecutable(file: string): boolean {
   }
 }
 
-// runFile saves the active Ant file and runs it with ant run as a task, whose shell quoting VS
-// Code does for the shell in use.
+// runFile saves the active Ant file and runs it with ant run as a task, started as a process
+// with its arguments, so that no shell reads the path.
 async function runFile(): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor || editor.document.languageId !== "ant") {
@@ -185,11 +185,7 @@ async function runFile(): Promise<void> {
   const ant = (await findAnt()) ?? "ant";
   const file = editor.document.uri.fsPath;
   const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
-  const execution = new vscode.ShellExecution(
-    { value: ant, quoting: vscode.ShellQuoting.Strong },
-    ["run", { value: file, quoting: vscode.ShellQuoting.Strong }],
-    { cwd: folder?.uri.fsPath ?? path.dirname(file) },
-  );
+  const execution = new vscode.ProcessExecution(ant, ["run", file], { cwd: folder?.uri.fsPath ?? path.dirname(file) });
   const task = new vscode.Task({ type: "ant", file }, folder ?? vscode.TaskScope.Workspace, path.basename(file), "ant", execution, "$ant");
   task.presentationOptions = { clear: true, focus: true };
   await vscode.tasks.executeTask(task);

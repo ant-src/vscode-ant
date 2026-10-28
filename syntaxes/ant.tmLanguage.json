@@ -149,6 +149,9 @@
           },
           "patterns": [
             {
+              "include": "#braces"
+            },
+            {
               "include": "$self"
             }
           ]
@@ -157,7 +160,7 @@
     },
     "regex": {
       "begin": "(?:(?<=[(,=:\\[{|!&?+\\-*%<>])|(?<=\\breturn)|(?<=\\bbreak)|(?<=\\bcontinue))\\s*(/)(?![/*])",
-      "end": "(/)([a-z]*)",
+      "end": "(/)([a-z]*)|$",
       "name": "string.regexp.ant",
       "beginCaptures": {
         "1": {
@@ -429,6 +432,9 @@
           },
           "patterns": [
             {
+              "include": "#braces"
+            },
+            {
               "include": "$self"
             }
           ]
@@ -489,6 +495,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#braces"
+        },
         {
           "include": "$self"
         }
@@ -793,6 +802,28 @@
               ]
             }
           ]
+        }
+      ]
+    },
+    "braces": {
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.bracket.ant"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.bracket.ant"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#braces"
+        },
+        {
+          "include": "$self"
         }
       ]
     }

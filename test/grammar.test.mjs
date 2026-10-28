@@ -101,6 +101,23 @@ test("regular expressions and division", async () => {
   assert.ok(!two.lines[1].some((t) => t.scopes.join(" ").includes("string.regexp")), JSON.stringify(two.lines[1]));
 });
 
+test("braces nest inside interpolations", async () => {
+  const tpl = await tokenize("var s = `${xs | Array.map({ x })} done`\nvar y = 1");
+  const done = tpl.lines[0].find((t) => t.text.trim() === "done");
+  assert.ok(done && done.scopes.includes("string.template.ant") && !done.scopes.includes("meta.template.expression.ant"), JSON.stringify(tpl.lines[0]));
+  assert.equal(tpl.stack.depth, 1);
+  const html = await tokenize("var h = <p>{Array.map(xs, { <b>{x}</b> })} tail</p>");
+  const tail = html.lines[0].find((t) => t.text.trim() === "tail");
+  assert.ok(tail && !tail.scopes.includes("meta.markup.interpolation.ant"), JSON.stringify(html.lines[0]));
+  assert.equal(html.stack.depth, 1);
+});
+
+test("an unclosed regular expression ends with its line", async () => {
+  const { lines } = await tokenize("var r = /abc\nvar y = 1");
+  const v = lines[1].find((t) => t.text === "var");
+  assert.ok(v && v.scopes.some((s) => s.startsWith("storage.type")), JSON.stringify(lines[1]));
+});
+
 test("markup", async () => {
   assert.match(await scopeOf("var h = <div class=\"a\">hi</div>", "div"), /entity\.name\.tag/);
   assert.match(await scopeOf("var h = <div class=\"a\">hi</div>", "class"), /entity\.other\.attribute-name/);
