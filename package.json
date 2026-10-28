@@ -1,5 +1,5 @@
 {
-  "name": "ant",
+  "name": "vscode-ant",
   "displayName": "Ant",
   "description": "Ant language support: highlighting, editing defaults, and the ant language server.",
   "version": "0.1.1",
