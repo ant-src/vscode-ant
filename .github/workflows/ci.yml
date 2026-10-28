@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: vscode-ant
+      - uses: actions/checkout@v4
+        with:
+          repository: ant-src/ant
+          path: ant
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+      - name: install
+        working-directory: vscode-ant
+        run: npm ci
+      - name: compile
+        working-directory: vscode-ant
+        run: npm run compile
+      - name: grammar
+        working-directory: vscode-ant
+        run: npm test
+      - name: integration
+        working-directory: vscode-ant
+        run: xvfb-run -a npm run test:integration
+      - name: package
+        working-directory: vscode-ant
+        run: npx @vscode/vsce package --no-dependencies -o ant.vsix
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ant.vsix
+          path: vscode-ant/ant.vsix

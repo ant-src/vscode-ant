@@ -1,0 +1,194 @@
+{
+  "name": "ant",
+  "displayName": "Ant",
+  "description": "Ant language support: highlighting, editing defaults, and the ant language server.",
+  "version": "0.1.0",
+  "publisher": "ant-src",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ant-src/vscode-ant.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters"
+  ],
+  "keywords": [
+    "ant",
+    "language"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:ant"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "The ant executable named by ant.path is used only in trusted workspaces, and Ant: Run File is disabled until the workspace is trusted.",
+      "restrictedConfigurations": [
+        "ant.path"
+      ]
+    }
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "ant",
+        "aliases": [
+          "Ant",
+          "ant"
+        ],
+        "extensions": [
+          ".ant"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ant",
+        "scopeName": "source.ant",
+        "path": "./syntaxes/ant.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.javascript": "javascript",
+          "meta.embedded.block.css": "css"
+        }
+      },
+      {
+        "scopeName": "markdown.ant.codeblock",
+        "path": "./syntaxes/ant.markdown.tmLanguage.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.ant": "ant"
+        }
+      }
+    ],
+    "semanticTokenTypes": [
+      {
+        "id": "element",
+        "superType": "type",
+        "description": "An element of an HTML expression."
+      },
+      {
+        "id": "attribute",
+        "superType": "property",
+        "description": "An attribute of an HTML expression."
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "ant",
+        "scopes": {
+          "element": [
+            "entity.name.tag.ant"
+          ],
+          "attribute": [
+            "entity.other.attribute-name.ant"
+          ],
+          "namespace": [
+            "entity.name.namespace.ant"
+          ]
+        }
+      }
+    ],
+    "configurationDefaults": {
+      "[ant]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "editor.semanticHighlighting.enabled": true,
+        "files.eol": "\n",
+        "files.insertFinalNewline": true
+      }
+    },
+    "configuration": {
+      "title": "Ant",
+      "properties": {
+        "ant.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "The `ant` executable. Empty means `ant` on `PATH`, then in `$GOBIN`, then in the `bin` directory of `go env GOPATH`."
+        },
+        "ant.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "scope": "window",
+          "description": "Traces the communication between VS Code and the Ant language server in the Ant output channel."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "ant.restartServer",
+        "title": "Restart Language Server",
+        "category": "Ant"
+      },
+      {
+        "command": "ant.showOutput",
+        "title": "Show Server Output",
+        "category": "Ant"
+      },
+      {
+        "command": "ant.runFile",
+        "title": "Run File",
+        "category": "Ant",
+        "enablement": "isWorkspaceTrusted"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "ant.runFile",
+          "when": "editorLangId == ant"
+        }
+      ]
+    },
+    "problemMatchers": [
+      {
+        "name": "ant",
+        "owner": "ant",
+        "fileLocation": [
+          "autoDetect",
+          "${workspaceFolder}"
+        ],
+        "pattern": {
+          "regexp": "^(.+?):(\\d+):(\\d+): (.+)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "node --test test/grammar.test.mjs",
+    "test:integration": "npm run compile && node test/integration/run.mjs",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.1",
+    "typescript": "^5.5.4",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.1.0"
+  }
+}

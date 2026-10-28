@@ -1,0 +1,10 @@
+//! Geometry has points on the plane.
+
+export type Point = { x: float64, y: float64 }
+
+// distance returns the straight-line distance from a to b.
+export func distance(a: Point, b: Point): float64 {
+  var dx = a.x - b.x
+  var dy = a.y - b.y
+  Math.sqrt(dx * dx + dy * dy)
+}

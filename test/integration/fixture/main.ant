@@ -1,0 +1,10 @@
+import "./lib/geometry.ant" { Point, distance }
+
+func main(): int {
+  var p = Point{ x: 1.0, y: 2.0 }
+  var d = distance(p, Point{ x: 0.0, y: 0.0 })
+  var n: int = "x"
+  println(Math.sqrt(d))
+  println(p.x)
+  n
+}
