@@ -247,18 +247,18 @@ function resolveDebugConfiguration(
     return undefined;
   }
   if (!config.type && !config.request && !config.name) {
-    const editor = vscode.window.activeTextEditor;
-    if (editor?.document.languageId !== "ant") {
-      return config;
-    }
     config.type = "ant";
     config.request = "launch";
     config.name = "Debug Ant file";
   }
   if (!config.program) {
     const doc = vscode.window.activeTextEditor?.document;
-    if (doc?.languageId !== "ant" || doc.uri.scheme !== "file") {
+    if (doc?.languageId !== "ant") {
       vscode.window.showInformationMessage("Open an Ant file to debug it.");
+      return undefined;
+    }
+    if (doc.uri.scheme !== "file") {
+      vscode.window.showInformationMessage("Save the file to debug it.");
       return undefined;
     }
     config.program = doc.uri.fsPath;
