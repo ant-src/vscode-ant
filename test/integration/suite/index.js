@@ -142,6 +142,8 @@ exports.run = async function run() {
   const scopes = await session.customRequest("scopes", { frameId: trace.stackFrames[0].id });
   const vars = await session.customRequest("variables", { variablesReference: scopes.scopes[0].variablesReference });
   assert.deepEqual(vars.variables.map((v) => `${v.name}=${v.value}`), ['name="ant"', 'text="hello, ant"']);
+  const evaluated = await session.customRequest("evaluate", { expression: "text + \"!\"", frameId: trace.stackFrames[0].id, context: "repl" });
+  assert.equal(evaluated.result, '"hello, ant!"');
   await session.customRequest("continue", { threadId: stops[0].threadId });
   await ended;
   tracker.dispose();
