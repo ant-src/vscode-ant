@@ -47,7 +47,11 @@
         "extensions": [
           ".ant"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./images/ant.svg",
+          "dark": "./images/ant_dark.svg"
+        }
       }
     ],
     "grammars": [
