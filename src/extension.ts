@@ -32,7 +32,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("ant.runFile", runFile),
     vscode.commands.registerCommand("ant.debugFile", debugFile),
     vscode.debug.registerDebugAdapterDescriptorFactory("ant", { createDebugAdapterDescriptor }),
-    vscode.debug.registerDebugConfigurationProvider("ant", { resolveDebugConfiguration }),
+    vscode.debug.registerDebugConfigurationProvider("ant", { resolveDebugConfiguration, resolveDebugConfigurationWithSubstitutedVariables }),
     vscode.tasks.registerTaskProvider("ant", {
       provideTasks: () => [],
       resolveTask: (task) => resolveAntTask(task),
@@ -223,8 +223,9 @@ async function antTask(def: AntTaskDefinition, scope: vscode.WorkspaceFolder | v
 }
 
 // createDebugAdapterDescriptor starts ant dap for a debug session (spec/dap.md), only in a trusted
-// workspace, since ant.path names the executable.
-async function createDebugAdapterDescriptor(): Promise<vscode.DebugAdapterDescriptor | undefined> {
+// workspace, since ant.path names the executable. It runs in the session's workspace folder, or
+// the program's directory, so that a relative program is taken from there.
+async function createDebugAdapterDescriptor(session: vscode.DebugSession): Promise<vscode.DebugAdapterDescriptor | undefined> {
   if (!vscode.workspace.isTrusted) {
     vscode.window.showWarningMessage("Debugging needs a trusted workspace.");
     return undefined;
@@ -234,7 +235,9 @@ async function createDebugAdapterDescriptor(): Promise<vscode.DebugAdapterDescri
     vscode.window.showErrorMessage("The ant executable was not found. Set ant.path to debug Ant programs.");
     return undefined;
   }
-  return new vscode.DebugAdapterExecutable(ant, ["dap"]);
+  const program = session.configuration.program;
+  const cwd = session.workspaceFolder?.uri.fsPath ?? (typeof program === "string" && program ? path.dirname(program) : undefined);
+  return new vscode.DebugAdapterExecutable(ant, ["dap"], cwd ? { cwd } : undefined);
 }
 
 // resolveDebugConfiguration lets F5 debug the active Ant file when there is no launch.json, and
@@ -259,6 +262,25 @@ function resolveDebugConfiguration(
       return undefined;
     }
     config.program = doc.uri.fsPath;
+  }
+  return config;
+}
+
+// resolveDebugConfigurationWithSubstitutedVariables makes a relative program, cwd, or stdin
+// absolute, against the workspace folder, as launch.json paths are read, or, in a window with no
+// folder, against the program's directory, where ant dap would look (spec/dap.md section 2).
+function resolveDebugConfigurationWithSubstitutedVariables(
+  folder: vscode.WorkspaceFolder | undefined,
+  config: vscode.DebugConfiguration,
+): vscode.DebugConfiguration {
+  if (folder && typeof config.program === "string" && config.program) {
+    config.program = path.resolve(folder.uri.fsPath, config.program);
+  }
+  const base = folder?.uri.fsPath ?? (typeof config.program === "string" && path.isAbsolute(config.program) ? path.dirname(config.program) : undefined);
+  for (const key of ["cwd", "stdin"]) {
+    if (base && typeof config[key] === "string" && config[key]) {
+      config[key] = path.resolve(base, config[key]);
+    }
   }
   return config;
 }

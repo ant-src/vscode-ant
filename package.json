@@ -217,7 +217,7 @@
             "properties": {
               "program": {
                 "type": "string",
-                "description": "The .ant file to run.",
+                "description": "The .ant file to run. A relative path is resolved against the workspace folder.",
                 "default": "${file}"
               },
               "args": {
@@ -230,7 +230,7 @@
               },
               "cwd": {
                 "type": "string",
-                "description": "The working directory. Defaults to the program's directory."
+                "description": "The working directory. Defaults to the program's directory. A relative path is resolved against the workspace folder."
               },
               "env": {
                 "type": "object",
@@ -242,7 +242,7 @@
               },
               "stdin": {
                 "type": "string",
-                "description": "A file whose contents are the program's standard input."
+                "description": "A file whose contents are the program's standard input. A relative path is resolved against the workspace folder."
               },
               "stopOnEntry": {
                 "type": "boolean",
