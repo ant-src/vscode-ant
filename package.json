@@ -1,7 +1,7 @@
 {
   "name": "ant-lang",
   "displayName": "Ant",
-  "description": "Ant language support: highlighting, editing defaults, and the ant language server.",
+  "description": "Ant language support: highlighting, editing defaults, the ant language server, and the ant debugger.",
   "version": "0.1.5",
   "publisher": "ant-lang",
   "license": "MIT",
@@ -14,7 +14,8 @@
   },
   "categories": [
     "Programming Languages",
-    "Formatters"
+    "Formatters",
+    "Debuggers"
   ],
   "keywords": [
     "ant",
@@ -22,12 +23,14 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "onLanguage:ant"
+    "onLanguage:ant",
+    "onDebugResolve:ant",
+    "onDebugDynamicConfigurations:ant"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "The ant executable named by ant.path is used only in trusted workspaces, and Ant: Run File is disabled until the workspace is trusted.",
+      "description": "The ant executable named by ant.path is used only in trusted workspaces, and Ant: Run File, Ant: Debug File and debugging are disabled until the workspace is trusted.",
       "restrictedConfigurations": [
         "ant.path"
       ]
@@ -143,12 +146,22 @@
         "title": "Run File",
         "category": "Ant",
         "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "ant.debugFile",
+        "title": "Debug File",
+        "category": "Ant",
+        "enablement": "isWorkspaceTrusted"
       }
     ],
     "menus": {
       "commandPalette": [
         {
           "command": "ant.runFile",
+          "when": "editorLangId == ant"
+        },
+        {
+          "command": "ant.debugFile",
           "when": "editorLangId == ant"
         }
       ]
@@ -182,6 +195,83 @@
             "description": "The .ant file to run."
           }
         }
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "ant"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "ant",
+        "label": "Ant",
+        "languages": [
+          "ant"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "The .ant file to run. A relative path is resolved against the workspace folder.",
+                "default": "${file}"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The program's arguments, as Os.args() returns them.",
+                "default": []
+              },
+              "cwd": {
+                "type": "string",
+                "description": "The working directory. Defaults to the program's directory. A relative path is resolved against the workspace folder."
+              },
+              "env": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Environment variables set over the editor's.",
+                "default": {}
+              },
+              "stdin": {
+                "type": "string",
+                "description": "A file whose contents are the program's standard input. A relative path is resolved against the workspace folder."
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Stop before the first statement of the program's root module.",
+                "default": false
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "ant",
+            "request": "launch",
+            "name": "Debug Ant file",
+            "program": "${file}"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Ant: Launch",
+            "description": "Debug an Ant program.",
+            "body": {
+              "type": "ant",
+              "request": "launch",
+              "name": "Debug Ant file",
+              "program": "^\"\\${file}\""
+            }
+          }
+        ]
       }
     ]
   },

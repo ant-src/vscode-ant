@@ -21,6 +21,8 @@ let lifecycle: Promise<void> = Promise.resolve();
 // ant installed later is found by the next restart.
 let antPath: string | undefined;
 
+const antMissing = "The ant executable was not found. Set ant.path, or install it with: go install github.com/ant-src/ant/cmd/ant@latest";
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   output = vscode.window.createOutputChannel("Ant");
   watcher = vscode.workspace.createFileSystemWatcher("**/*.ant");
@@ -30,6 +32,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("ant.restartServer", () => restart()),
     vscode.commands.registerCommand("ant.showOutput", () => output.show()),
     vscode.commands.registerCommand("ant.runFile", runFile),
+    vscode.commands.registerCommand("ant.debugFile", debugFile),
+    vscode.debug.registerDebugAdapterDescriptorFactory("ant", { createDebugAdapterDescriptor }),
+    vscode.debug.registerDebugConfigurationProvider("ant", { resolveDebugConfiguration, resolveDebugConfigurationWithSubstitutedVariables }),
     vscode.tasks.registerTaskProvider("ant", {
       provideTasks: () => [],
       resolveTask: (task) => resolveAntTask(task),
@@ -76,10 +81,7 @@ async function startClient(): Promise<void> {
     const install = "How to install";
     // not awaited: the notification has an action, so it stays until dismissed
     void vscode.window
-      .showErrorMessage(
-        "The ant executable was not found. Set ant.path, or install it with: go install github.com/ant-src/ant/cmd/ant@latest",
-        install,
-      )
+      .showErrorMessage(antMissing, install)
       .then((choice) => {
         if (choice === install) {
           vscode.env.openExternal(vscode.Uri.parse("https://github.com/ant-src/ant#install"));
@@ -217,4 +219,100 @@ async function antTask(def: AntTaskDefinition, scope: vscode.WorkspaceFolder | v
   const ant = (await findAnt()) ?? "ant";
   const execution = new vscode.ProcessExecution(ant, ["run", file], cwd ? { cwd } : undefined);
   return new vscode.Task(def, scope, name, "ant", execution, "$ant");
+}
+
+// createDebugAdapterDescriptor starts ant dap for a debug session (spec/dap.md); the workspace is
+// trusted, since resolveDebugConfiguration checked. It runs in the session's workspace folder, or
+// the program's directory, so that a relative program is taken from there. An error thrown here is
+// what the editor shows, where an undefined descriptor would add its own, misleading one.
+async function createDebugAdapterDescriptor(session: vscode.DebugSession): Promise<vscode.DebugAdapterDescriptor> {
+  const ant = await findAnt();
+  if (!ant) {
+    throw new Error(antMissing);
+  }
+  const program = session.configuration.program;
+  const cwd = session.workspaceFolder?.uri.fsPath ?? (typeof program === "string" && program ? path.dirname(program) : undefined);
+  return new vscode.DebugAdapterExecutable(ant, ["dap"], cwd ? { cwd } : undefined);
+}
+
+// resolveDebugConfiguration lets F5 debug the active Ant file when there is no launch.json, and
+// gives a configuration without a program the active file; it needs a trusted workspace, since
+// ant.path names the executable.
+function resolveDebugConfiguration(
+  folder: vscode.WorkspaceFolder | undefined,
+  config: vscode.DebugConfiguration,
+): vscode.DebugConfiguration | undefined {
+  if (!vscode.workspace.isTrusted) {
+    vscode.window.showWarningMessage("Debugging needs a trusted workspace.");
+    return undefined;
+  }
+  if (!config.type && !config.request && !config.name) {
+    config.type = "ant";
+    config.request = "launch";
+    config.name = "Debug Ant file";
+  }
+  // under Run Without Debugging the editor sends no breakpoints; stopOnEntry would still stop,
+  // since ant dap has no noDebug
+  if (config.noDebug) {
+    delete config.stopOnEntry;
+  }
+  if (!config.program) {
+    const doc = vscode.window.activeTextEditor?.document;
+    if (doc?.languageId !== "ant") {
+      vscode.window.showInformationMessage("Open an Ant file to debug it.");
+      return undefined;
+    }
+    if (doc.uri.scheme !== "file") {
+      vscode.window.showInformationMessage("Save the file to debug it.");
+      return undefined;
+    }
+    config.program = doc.uri.fsPath;
+  }
+  return config;
+}
+
+// resolveDebugConfigurationWithSubstitutedVariables makes a relative program, cwd, or stdin
+// absolute, against the workspace folder, as launch.json paths are read, or, in a window with no
+// folder, against the program's directory, where ant dap would look (spec/dap.md section 2).
+function resolveDebugConfigurationWithSubstitutedVariables(
+  folder: vscode.WorkspaceFolder | undefined,
+  config: vscode.DebugConfiguration,
+): vscode.DebugConfiguration {
+  if (folder && typeof config.program === "string" && config.program) {
+    config.program = path.resolve(folder.uri.fsPath, config.program);
+  }
+  const base = folder?.uri.fsPath ?? (typeof config.program === "string" && path.isAbsolute(config.program) ? path.dirname(config.program) : undefined);
+  for (const key of ["cwd", "stdin"]) {
+    if (base && typeof config[key] === "string" && config[key]) {
+      config[key] = path.resolve(base, config[key]);
+    }
+  }
+  return config;
+}
+
+// debugFile saves the active Ant file and debugs it.
+async function debugFile(): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || editor.document.languageId !== "ant") {
+    vscode.window.showInformationMessage("Open an Ant file to debug it.");
+    return;
+  }
+  if (!vscode.workspace.isTrusted) {
+    vscode.window.showWarningMessage("Debugging needs a trusted workspace.");
+    return;
+  }
+  if (editor.document.uri.scheme !== "file") {
+    vscode.window.showInformationMessage("Save the file to debug it.");
+    return;
+  }
+  if (editor.document.isDirty && !(await editor.document.save())) {
+    return;
+  }
+  const file = editor.document.uri.fsPath;
+  await vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(editor.document.uri), {
+    type: "ant",
+    request: "launch",
+    name: path.basename(file),
+    program: file,
+  });
 }
