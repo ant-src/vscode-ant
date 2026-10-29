@@ -112,4 +112,38 @@ exports.run = async function run() {
   const helloDoc = await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(folder, "hello.ant")));
   await vscode.window.showTextDocument(helloDoc);
   assert.equal(await runTask(() => vscode.commands.executeCommand("ant.runFile"), "hello.ant"), 0);
+
+  // a debug session stops at a breakpoint, shows the locals, and runs to the end
+  const debugFile = path.join(folder, "debug.ant");
+  vscode.debug.addBreakpoints([new vscode.SourceBreakpoint(new vscode.Location(vscode.Uri.file(debugFile), new vscode.Position(2, 0)))]);
+  const stops = [];
+  const outputs = [];
+  const tracker = vscode.debug.registerDebugAdapterTrackerFactory("ant", {
+    createDebugAdapterTracker: () => ({
+      onDidSendMessage: (m) => {
+        if (m.type === "event" && m.event === "stopped") stops.push(m.body);
+        if (m.type === "event" && m.event === "output") outputs.push(m.body.output);
+      },
+    }),
+  });
+  const ended = new Promise((resolve) => {
+    const d = vscode.debug.onDidTerminateDebugSession(() => {
+      d.dispose();
+      resolve();
+    });
+  });
+  assert.ok(await vscode.debug.startDebugging(vscode.workspace.workspaceFolders[0], { type: "ant", request: "launch", name: "debug", program: debugFile }));
+  await until(() => stops.length > 0, "a stop at the breakpoint");
+  assert.equal(stops[0].reason, "breakpoint");
+  const session = vscode.debug.activeDebugSession;
+  const trace = await session.customRequest("stackTrace", { threadId: stops[0].threadId });
+  assert.equal(trace.stackFrames[0].name, "greet");
+  assert.equal(trace.stackFrames[0].line, 3);
+  const scopes = await session.customRequest("scopes", { frameId: trace.stackFrames[0].id });
+  const vars = await session.customRequest("variables", { variablesReference: scopes.scopes[0].variablesReference });
+  assert.deepEqual(vars.variables.map((v) => `${v.name}=${v.value}`), ['name="ant"', 'text="hello, ant"']);
+  await session.customRequest("continue", { threadId: stops[0].threadId });
+  await ended;
+  tracker.dispose();
+  assert.ok(outputs.join("").includes("hello, ant"), outputs.join(""));
 };

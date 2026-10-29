@@ -30,6 +30,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("ant.restartServer", () => restart()),
     vscode.commands.registerCommand("ant.showOutput", () => output.show()),
     vscode.commands.registerCommand("ant.runFile", runFile),
+    vscode.commands.registerCommand("ant.debugFile", debugFile),
+    vscode.debug.registerDebugAdapterDescriptorFactory("ant", { createDebugAdapterDescriptor }),
+    vscode.debug.registerDebugConfigurationProvider("ant", { resolveDebugConfiguration }),
     vscode.tasks.registerTaskProvider("ant", {
       provideTasks: () => [],
       resolveTask: (task) => resolveAntTask(task),
@@ -217,4 +220,68 @@ async function antTask(def: AntTaskDefinition, scope: vscode.WorkspaceFolder | v
   const ant = (await findAnt()) ?? "ant";
   const execution = new vscode.ProcessExecution(ant, ["run", file], cwd ? { cwd } : undefined);
   return new vscode.Task(def, scope, name, "ant", execution, "$ant");
+}
+
+// createDebugAdapterDescriptor starts ant dap for a debug session (spec/dap.md), only in a trusted
+// workspace, since ant.path names the executable.
+async function createDebugAdapterDescriptor(): Promise<vscode.DebugAdapterDescriptor | undefined> {
+  if (!vscode.workspace.isTrusted) {
+    vscode.window.showWarningMessage("Debugging needs a trusted workspace.");
+    return undefined;
+  }
+  const ant = await findAnt();
+  if (!ant) {
+    vscode.window.showErrorMessage("The ant executable was not found. Set ant.path to debug Ant programs.");
+    return undefined;
+  }
+  return new vscode.DebugAdapterExecutable(ant, ["dap"]);
+}
+
+// resolveDebugConfiguration lets F5 debug the active Ant file when there is no launch.json, and
+// gives a configuration without a program the active file.
+function resolveDebugConfiguration(
+  folder: vscode.WorkspaceFolder | undefined,
+  config: vscode.DebugConfiguration,
+): vscode.DebugConfiguration | undefined {
+  if (!config.type && !config.request && !config.name) {
+    const editor = vscode.window.activeTextEditor;
+    if (editor?.document.languageId !== "ant") {
+      return config;
+    }
+    config.type = "ant";
+    config.request = "launch";
+    config.name = "Debug Ant file";
+  }
+  if (!config.program) {
+    const doc = vscode.window.activeTextEditor?.document;
+    if (doc?.languageId !== "ant" || doc.uri.scheme !== "file") {
+      vscode.window.showInformationMessage("Open an Ant file to debug it.");
+      return undefined;
+    }
+    config.program = doc.uri.fsPath;
+  }
+  return config;
+}
+
+// debugFile saves the active Ant file and debugs it.
+async function debugFile(): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || editor.document.languageId !== "ant") {
+    vscode.window.showInformationMessage("Open an Ant file to debug it.");
+    return;
+  }
+  if (editor.document.uri.scheme !== "file") {
+    vscode.window.showInformationMessage("Save the file to debug it.");
+    return;
+  }
+  if (editor.document.isDirty && !(await editor.document.save())) {
+    return;
+  }
+  const file = editor.document.uri.fsPath;
+  await vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(editor.document.uri), {
+    type: "ant",
+    request: "launch",
+    name: path.basename(file),
+    program: file,
+  });
 }

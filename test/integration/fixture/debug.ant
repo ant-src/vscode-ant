@@ -1,0 +1,6 @@
+func greet(name: string): string {
+  var text = "hello, " + name
+  return text
+}
+
+println(greet("ant"))
