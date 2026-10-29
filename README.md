@@ -24,9 +24,9 @@ It finds `ant` on `PATH` or in your Go bin directory. Set `ant.path` to use anot
 ## Debugging
 
 Press F5 in an Ant file, or run **Ant: Debug File**, to debug it with no `launch.json`. Breakpoints
-with conditions, hit counts, and log messages, stepping, pause, every goroutine's stack and
-variables, watch expressions, the debug console, hover on names and fields, and stopping at panics
-work as `ant dap` serves them. A launch configuration takes the program and, optionally, its arguments, working
+with conditions, hit counts, and log messages, function breakpoints, stepping, pause, every
+goroutine's stack and variables, Set Value, watch expressions, the debug console, hover on names and
+fields, and stopping at panics work as `ant dap` serves them. A launch configuration takes the program and, optionally, its arguments, working
 directory, environment, a file for its standard input, and whether to stop on entry:
 
 ```json
