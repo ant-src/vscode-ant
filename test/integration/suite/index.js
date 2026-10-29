@@ -115,37 +115,53 @@ exports.run = async function run() {
 
   // a debug session stops at a breakpoint, shows the locals, and runs to the end
   const debugFile = path.join(folder, "debug.ant");
-  vscode.debug.addBreakpoints([new vscode.SourceBreakpoint(new vscode.Location(vscode.Uri.file(debugFile), new vscode.Position(2, 0)))]);
+  const breakpoint = new vscode.SourceBreakpoint(new vscode.Location(vscode.Uri.file(debugFile), new vscode.Position(2, 0)));
+  vscode.debug.addBreakpoints([breakpoint]);
   const stops = [];
   const outputs = [];
+  // errors is what went wrong in the adapter, for the message of a failed assertion: the program's
+  // standard error, a failed request, and how the adapter ended
+  const errors = [];
   const tracker = vscode.debug.registerDebugAdapterTrackerFactory("ant", {
     createDebugAdapterTracker: () => ({
       onDidSendMessage: (m) => {
         if (m.type === "event" && m.event === "stopped") stops.push(m.body);
         if (m.type === "event" && m.event === "output") outputs.push(m.body.output);
+        if (m.type === "event" && m.event === "output" && m.body.category === "stderr") errors.push(m.body.output);
+        if (m.type === "response" && !m.success) errors.push(`${m.command}: ${m.message}\n`);
       },
+      onError: (err) => errors.push(`${err}\n`),
+      onExit: (code, signal) => errors.push(`ant dap exited with ${code ?? signal}\n`),
     }),
   });
-  const ended = new Promise((resolve) => {
-    const d = vscode.debug.onDidTerminateDebugSession(() => {
-      d.dispose();
-      resolve();
-    });
+  let ended = false;
+  const terminated = vscode.debug.onDidTerminateDebugSession(() => {
+    ended = true;
   });
-  assert.ok(await vscode.debug.startDebugging(vscode.workspace.workspaceFolders[0], { type: "ant", request: "launch", name: "debug", program: debugFile }));
-  await until(() => stops.length > 0, "a stop at the breakpoint");
-  assert.equal(stops[0].reason, "breakpoint");
-  const session = vscode.debug.activeDebugSession;
-  const trace = await session.customRequest("stackTrace", { threadId: stops[0].threadId });
-  assert.equal(trace.stackFrames[0].name, "greet");
-  assert.equal(trace.stackFrames[0].line, 3);
-  const scopes = await session.customRequest("scopes", { frameId: trace.stackFrames[0].id });
-  const vars = await session.customRequest("variables", { variablesReference: scopes.scopes[0].variablesReference });
-  assert.deepEqual(vars.variables.map((v) => `${v.name}=${v.value}`), ['name="ant"', 'text="hello, ant"']);
-  const evaluated = await session.customRequest("evaluate", { expression: "text + \"!\"", frameId: trace.stackFrames[0].id, context: "repl" });
-  assert.equal(evaluated.result, '"hello, ant!"');
-  await session.customRequest("continue", { threadId: stops[0].threadId });
-  await ended;
-  tracker.dispose();
-  assert.ok(outputs.join("").includes("hello, ant"), outputs.join(""));
+  try {
+    const started = await vscode.debug.startDebugging(vscode.workspace.workspaceFolders[0], { type: "ant", request: "launch", name: "debug", program: debugFile });
+    assert.ok(started, `the debug session did not start; is ${process.env.ANT_BIN} an ant with dap?\n${errors.join("")}`);
+    await until(() => stops.length > 0 || ended, "a stop at the breakpoint");
+    assert.ok(stops.length > 0, `the session ended before the breakpoint\n${errors.join("")}`);
+    assert.equal(stops[0].reason, "breakpoint");
+    const session = vscode.debug.activeDebugSession;
+    const trace = await session.customRequest("stackTrace", { threadId: stops[0].threadId });
+    assert.equal(trace.stackFrames[0].name, "greet");
+    assert.equal(trace.stackFrames[0].line, 3);
+    const scopes = await session.customRequest("scopes", { frameId: trace.stackFrames[0].id });
+    const vars = await session.customRequest("variables", { variablesReference: scopes.scopes[0].variablesReference });
+    assert.deepEqual(vars.variables.map((v) => `${v.name}=${v.value}`), ['name="ant"', 'text="hello, ant"']);
+    const evaluated = await session.customRequest("evaluate", { expression: "text + \"!\"", frameId: trace.stackFrames[0].id, context: "repl" });
+    assert.equal(evaluated.result, '"hello, ant!"');
+    await session.customRequest("continue", { threadId: stops[0].threadId });
+    await until(() => ended, "the session to end");
+    assert.ok(outputs.join("").includes("hello, ant"), outputs.join(""));
+  } finally {
+    if (!ended) {
+      await vscode.debug.stopDebugging();
+    }
+    terminated.dispose();
+    tracker.dispose();
+    vscode.debug.removeBreakpoints([breakpoint]);
+  }
 };
