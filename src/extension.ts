@@ -21,6 +21,8 @@ let lifecycle: Promise<void> = Promise.resolve();
 // ant installed later is found by the next restart.
 let antPath: string | undefined;
 
+const antMissing = "The ant executable was not found. Set ant.path, or install it with: go install github.com/ant-src/ant/cmd/ant@latest";
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   output = vscode.window.createOutputChannel("Ant");
   watcher = vscode.workspace.createFileSystemWatcher("**/*.ant");
@@ -79,10 +81,7 @@ async function startClient(): Promise<void> {
     const install = "How to install";
     // not awaited: the notification has an action, so it stays until dismissed
     void vscode.window
-      .showErrorMessage(
-        "The ant executable was not found. Set ant.path, or install it with: go install github.com/ant-src/ant/cmd/ant@latest",
-        install,
-      )
+      .showErrorMessage(antMissing, install)
       .then((choice) => {
         if (choice === install) {
           vscode.env.openExternal(vscode.Uri.parse("https://github.com/ant-src/ant#install"));
@@ -222,18 +221,14 @@ async function antTask(def: AntTaskDefinition, scope: vscode.WorkspaceFolder | v
   return new vscode.Task(def, scope, name, "ant", execution, "$ant");
 }
 
-// createDebugAdapterDescriptor starts ant dap for a debug session (spec/dap.md), only in a trusted
-// workspace, since ant.path names the executable. It runs in the session's workspace folder, or
-// the program's directory, so that a relative program is taken from there.
-async function createDebugAdapterDescriptor(session: vscode.DebugSession): Promise<vscode.DebugAdapterDescriptor | undefined> {
-  if (!vscode.workspace.isTrusted) {
-    vscode.window.showWarningMessage("Debugging needs a trusted workspace.");
-    return undefined;
-  }
+// createDebugAdapterDescriptor starts ant dap for a debug session (spec/dap.md); the workspace is
+// trusted, since resolveDebugConfiguration checked. It runs in the session's workspace folder, or
+// the program's directory, so that a relative program is taken from there. An error thrown here is
+// what the editor shows, where an undefined descriptor would add its own, misleading one.
+async function createDebugAdapterDescriptor(session: vscode.DebugSession): Promise<vscode.DebugAdapterDescriptor> {
   const ant = await findAnt();
   if (!ant) {
-    vscode.window.showErrorMessage("The ant executable was not found. Set ant.path to debug Ant programs.");
-    return undefined;
+    throw new Error(antMissing);
   }
   const program = session.configuration.program;
   const cwd = session.workspaceFolder?.uri.fsPath ?? (typeof program === "string" && program ? path.dirname(program) : undefined);
@@ -241,11 +236,16 @@ async function createDebugAdapterDescriptor(session: vscode.DebugSession): Promi
 }
 
 // resolveDebugConfiguration lets F5 debug the active Ant file when there is no launch.json, and
-// gives a configuration without a program the active file.
+// gives a configuration without a program the active file; it needs a trusted workspace, since
+// ant.path names the executable.
 function resolveDebugConfiguration(
   folder: vscode.WorkspaceFolder | undefined,
   config: vscode.DebugConfiguration,
 ): vscode.DebugConfiguration | undefined {
+  if (!vscode.workspace.isTrusted) {
+    vscode.window.showWarningMessage("Debugging needs a trusted workspace.");
+    return undefined;
+  }
   if (!config.type && !config.request && !config.name) {
     const editor = vscode.window.activeTextEditor;
     if (editor?.document.languageId !== "ant") {
@@ -290,6 +290,10 @@ async function debugFile(): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor || editor.document.languageId !== "ant") {
     vscode.window.showInformationMessage("Open an Ant file to debug it.");
+    return;
+  }
+  if (!vscode.workspace.isTrusted) {
+    vscode.window.showWarningMessage("Debugging needs a trusted workspace.");
     return;
   }
   if (editor.document.uri.scheme !== "file") {
