@@ -251,6 +251,11 @@ function resolveDebugConfiguration(
     config.request = "launch";
     config.name = "Debug Ant file";
   }
+  // under Run Without Debugging the editor sends no breakpoints; stopOnEntry would still stop,
+  // since ant dap has no noDebug
+  if (config.noDebug) {
+    delete config.stopOnEntry;
+  }
   if (!config.program) {
     const doc = vscode.window.activeTextEditor?.document;
     if (doc?.languageId !== "ant") {
