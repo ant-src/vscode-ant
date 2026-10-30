@@ -16,7 +16,7 @@
       "include": "#strings"
     },
     {
-      "include": "#template"
+      "include": "#raw-strings"
     },
     {
       "include": "#regex"
@@ -86,7 +86,7 @@
     "escapes": {
       "patterns": [
         {
-          "match": "\\\\(?:[ntr\\\\\"`$]|u\\{[0-9A-Fa-f]+\\})",
+          "match": "\\\\(?:[ntr\\\\\"$]|u\\{[0-9A-Fa-f]+\\})",
           "name": "constant.character.escape.ant"
         },
         {
@@ -97,7 +97,7 @@
     },
     "strings": {
       "begin": "\"",
-      "end": "\"|$",
+      "end": "\"",
       "name": "string.quoted.double.ant",
       "beginCaptures": {
         "0": {
@@ -112,13 +112,40 @@
       "patterns": [
         {
           "include": "#escapes"
+        },
+        {
+          "include": "#interpolation"
         }
       ]
     },
-    "template": {
+    "interpolation": {
+      "begin": "\\$\\{",
+      "end": "\\}",
+      "name": "meta.template.expression.ant",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.template-expression.begin.ant"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.template-expression.end.ant"
+        }
+      },
+      "contentName": "meta.embedded.line.ant",
+      "patterns": [
+        {
+          "include": "#braces"
+        },
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "raw-strings": {
       "begin": "`",
       "end": "`",
-      "name": "string.template.ant",
+      "name": "string.quoted.raw.ant",
       "beginCaptures": {
         "0": {
           "name": "punctuation.definition.string.begin.ant"
@@ -128,35 +155,7 @@
         "0": {
           "name": "punctuation.definition.string.end.ant"
         }
-      },
-      "patterns": [
-        {
-          "include": "#escapes"
-        },
-        {
-          "begin": "\\$\\{",
-          "end": "\\}",
-          "name": "meta.template.expression.ant",
-          "beginCaptures": {
-            "0": {
-              "name": "punctuation.definition.template-expression.begin.ant"
-            }
-          },
-          "endCaptures": {
-            "0": {
-              "name": "punctuation.definition.template-expression.end.ant"
-            }
-          },
-          "patterns": [
-            {
-              "include": "#braces"
-            },
-            {
-              "include": "$self"
-            }
-          ]
-        }
-      ]
+      }
     },
     "regex": {
       "begin": "(?:(?<=[(,=:\\[{|!&?+\\-*%<>])|(?<=\\breturn)|(?<=\\bbreak)|(?<=\\bcontinue))\\s*(/)(?![/*])",

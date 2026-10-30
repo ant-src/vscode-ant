@@ -85,9 +85,24 @@ test("literals", async () => {
   assert.match(await scopeOf("var n = 2.5e-3", "2.5e-3"), /constant\.numeric/);
   assert.match(await scopeOf('var s = "a\\nb"', "\\n"), /constant\.character\.escape/);
   assert.match(await scopeOf('var s = "a\\qb"', "\\q"), /invalid\.illegal\.escape/);
-  const { lines } = await tokenize("var s = `total: ${count} items`");
+  const { lines } = await tokenize('var s = "total: ${count} items"');
   const inner = lines[0].find((t) => t.text === "count");
   assert.ok(inner && inner.scopes.join(" ").includes("meta.template.expression"), JSON.stringify(lines[0]));
+  assert.match(await scopeOf('var s = "cost: \\${n}"', "\\$"), /constant\.character\.escape/);
+  assert.match(await scopeOf('var s = "a\\`b"', "\\`"), /invalid\.illegal\.escape/);
+  // a string spans lines
+  const multi = await tokenize('var s = "one\ntwo ${x}"\nvar y = 1');
+  const two = multi.lines[1].find((t) => t.text.trim() === "two");
+  assert.ok(two && two.scopes.includes("string.quoted.double.ant"), JSON.stringify(multi.lines[1]));
+  assert.equal(multi.stack.depth, 1);
+  // a raw string has no escapes and no interpolation, and spans lines
+  const raw = await tokenize("var r = `C:\\temp ${x} \"hi\"\nnext`\nvar y = 1");
+  for (const t of raw.lines[0].slice(raw.lines[0].findIndex((t) => t.text === "`"))) {
+    assert.ok(t.scopes.includes("string.quoted.raw.ant") && t.scopes.length === 1 + (t.text === "`" ? 1 : 0), JSON.stringify(raw.lines[0]));
+  }
+  const next = raw.lines[1].find((t) => t.text.trim() === "next");
+  assert.ok(next && next.scopes.includes("string.quoted.raw.ant"), JSON.stringify(raw.lines[1]));
+  assert.equal(raw.stack.depth, 1);
 });
 
 test("regular expressions and division", async () => {
@@ -102,9 +117,9 @@ test("regular expressions and division", async () => {
 });
 
 test("braces nest inside interpolations", async () => {
-  const tpl = await tokenize("var s = `${xs | Array.map({ x })} done`\nvar y = 1");
+  const tpl = await tokenize('var s = "${xs | Array.map({ "<${x}>" })} done"\nvar y = 1');
   const done = tpl.lines[0].find((t) => t.text.trim() === "done");
-  assert.ok(done && done.scopes.includes("string.template.ant") && !done.scopes.includes("meta.template.expression.ant"), JSON.stringify(tpl.lines[0]));
+  assert.ok(done && done.scopes.includes("string.quoted.double.ant") && !done.scopes.includes("meta.template.expression.ant"), JSON.stringify(tpl.lines[0]));
   assert.equal(tpl.stack.depth, 1);
   const html = await tokenize("var h = <p>{Array.map(xs, { <b>{x}</b> })} tail</p>");
   const tail = html.lines[0].find((t) => t.text.trim() === "tail");
