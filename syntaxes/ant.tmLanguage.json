@@ -623,7 +623,7 @@
           "name": "support.type.ant"
         },
         {
-          "match": "(?<![\\w.])\\b(print|println|panic|len)\\b(?=\\s*\\()",
+          "match": "(?<![\\w.])\\b(print|println|eprint|eprintln|panic|len)\\b(?=\\s*\\()",
           "name": "support.function.builtin.ant"
         }
       ]
