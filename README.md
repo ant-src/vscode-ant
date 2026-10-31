@@ -31,7 +31,13 @@ program and, optionally, its arguments, working directory, environment, a file f
 input, and whether to stop on entry; a relative path is resolved against the workspace folder:
 
 ```json
-{ "type": "ant", "request": "launch", "name": "Debug main", "program": "${workspaceFolder}/main.ant", "args": ["-v"] }
+{
+  "type": "ant",
+  "request": "launch",
+  "name": "Debug main",
+  "program": "${workspaceFolder}/main.ant",
+  "args": ["-v"]
+}
 ```
 
 ## Tasks
@@ -40,7 +46,13 @@ A task of type `ant` in `tasks.json` runs a file with `ant run`, so it can be th
 or have a keyboard shortcut:
 
 ```json
-{ "type": "ant", "file": "main.ant", "label": "run main", "group": "build", "problemMatcher": "$ant" }
+{
+  "type": "ant",
+  "file": "main.ant",
+  "label": "run main",
+  "group": "build",
+  "problemMatcher": "$ant"
+}
 ```
 
 ## Development
