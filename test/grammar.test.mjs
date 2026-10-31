@@ -89,6 +89,14 @@ test("literals", async () => {
   const inner = lines[0].find((t) => t.text === "count");
   assert.ok(inner && inner.scopes.join(" ").includes("meta.template.expression"), JSON.stringify(lines[0]));
   assert.match(await scopeOf('var s = "cost: \\${n}"', "\\$"), /constant\.character\.escape/);
+  // code in an interpolation is not string text, so themes color it as code
+  const code = await tokenize('var s = "${Math.round(x) * 2} items"');
+  for (const t of code.lines[0].filter((t) => ["Math", ".", "round", "(", ")", "*", "2"].includes(t.text.trim()))) {
+    assert.ok(!t.scopes.some((s) => s.startsWith("string")), JSON.stringify(t));
+  }
+  for (const text of ['"', "items", "\\n"]) {
+    assert.match(await scopeOf('var s = "${x} items\\n"', text), /string\.quoted\.double/);
+  }
   assert.match(await scopeOf('var s = "a\\`b"', "\\`"), /invalid\.illegal\.escape/);
   // a string spans lines
   const multi = await tokenize('var s = "one\ntwo ${x}"\nvar y = 1');

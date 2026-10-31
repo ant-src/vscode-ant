@@ -87,26 +87,27 @@
       "patterns": [
         {
           "match": "\\\\(?:[ntr\\\\\"$]|u\\{[0-9A-Fa-f]+\\})",
-          "name": "constant.character.escape.ant"
+          "name": "string.quoted.double.ant constant.character.escape.ant"
         },
         {
           "match": "\\\\.",
-          "name": "invalid.illegal.escape.ant"
+          "name": "string.quoted.double.ant invalid.illegal.escape.ant"
         }
       ]
     },
     "strings": {
+      "comment": "Only the quotes and the text carry the string scope, so code in ${...} reads as code in any theme rather than taking the string color.",
       "begin": "\"",
       "end": "\"",
-      "name": "string.quoted.double.ant",
+      "name": "meta.string.ant",
       "beginCaptures": {
         "0": {
-          "name": "punctuation.definition.string.begin.ant"
+          "name": "string.quoted.double.ant punctuation.definition.string.begin.ant"
         }
       },
       "endCaptures": {
         "0": {
-          "name": "punctuation.definition.string.end.ant"
+          "name": "string.quoted.double.ant punctuation.definition.string.end.ant"
         }
       },
       "patterns": [
@@ -115,6 +116,10 @@
         },
         {
           "include": "#interpolation"
+        },
+        {
+          "match": "(?:[^\"\\\\$]|\\$(?!\\{)|\\\\$)+",
+          "name": "string.quoted.double.ant"
         }
       ]
     },
