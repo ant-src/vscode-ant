@@ -70,6 +70,17 @@ test("keywords, fields, and reserved words", async () => {
   assert.match(await scopeOf("x is null", "null"), /constant\.language/);
 });
 
+test("test declarations", async () => {
+  assert.match(await scopeOf('test "parse" {}', "test"), /keyword\.control/);
+  assert.match(await scopeOf("  test `0x10` {}", "test"), /keyword\.control/);
+  assert.match(await scopeOf('test "${c.input}" {}', "test"), /keyword\.control/);
+  // outside a test declaration test is a name, and after . always a field
+  assert.doesNotMatch(await scopeOf("var test = 1", "test"), /keyword/);
+  assert.doesNotMatch(await scopeOf("test(x)", "test"), /keyword/);
+  assert.doesNotMatch(await scopeOf("Regex.test(/ant/, s)", "test"), /keyword/);
+  assert.doesNotMatch(await scopeOf('Regex.test "a"', "test"), /keyword/);
+});
+
 test("declarations", async () => {
   assert.match(await scopeOf("func Point.distance(a: Point): float64 {}", "distance"), /entity\.name\.function/);
   assert.match(await scopeOf("func Point.distance(a: Point): float64 {}", "Point"), /entity\.name\.type/);

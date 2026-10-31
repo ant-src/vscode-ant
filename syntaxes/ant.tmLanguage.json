@@ -585,6 +585,10 @@
         {
           "match": "(?<![\\w.])\\b(var|func|type|import|export)\\b(?!\\s*:)",
           "name": "storage.type.ant"
+        },
+        {
+          "match": "(?<![\\w.])\\btest(?=\\s*[\"`])",
+          "name": "keyword.control.test.ant"
         }
       ]
     },
