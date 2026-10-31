@@ -4,6 +4,7 @@
   "description": "Ant language support: highlighting, editing defaults, the ant language server, and the ant debugger.",
   "version": "0.1.5",
   "publisher": "ant-lang",
+  "icon": "images/icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
