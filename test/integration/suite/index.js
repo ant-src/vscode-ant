@@ -164,4 +164,46 @@ exports.run = async function run() {
     tracker.dispose();
     vscode.debug.removeBreakpoints([breakpoint]);
   }
+
+  // a test file has run and debug lenses above each test, and their commands run and debug it
+  const testUri = vscode.Uri.file(path.join(folder, "math_test.ant"));
+  await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(testUri));
+  const lenses = await until(() => vscode.commands.executeCommand("vscode.executeCodeLensProvider", testUri).then((l) => (l && l.length ? l : null)), "code lenses");
+  const commands = lenses.map((l) => `${l.command.command} ${l.command.arguments[1]}`);
+  assert.ok(commands.includes("ant.test.run ^other$") && commands.includes("ant.test.debug ^other$"), commands.join("\n"));
+  const other = lenses.find((l) => l.command.command === "ant.test.run" && l.command.arguments[1] === "^other$");
+  assert.equal(await runTask(() => vscode.commands.executeCommand(other.command.command, ...other.command.arguments), "math_test.ant: ^other$"), 0);
+
+  const testBreakpoint = new vscode.SourceBreakpoint(new vscode.Location(testUri, new vscode.Position(11, 0)));
+  vscode.debug.addBreakpoints([testBreakpoint]);
+  const testStops = [];
+  const testTracker = vscode.debug.registerDebugAdapterTrackerFactory("ant", {
+    createDebugAdapterTracker: () => ({
+      onDidSendMessage: (m) => {
+        if (m.type === "event" && m.event === "stopped") testStops.push(m.body);
+      },
+    }),
+  });
+  let testEnded = false;
+  const testTerminated = vscode.debug.onDidTerminateDebugSession(() => {
+    testEnded = true;
+  });
+  try {
+    await vscode.commands.executeCommand("ant.test.debug", testUri.toString(), "^other$");
+    await until(() => testStops.length > 0 || testEnded, "a stop in the test");
+    assert.ok(testStops.length > 0, "the test session ended before the breakpoint");
+    const session = vscode.debug.activeDebugSession;
+    assert.equal(session.configuration.test, "^other$");
+    const trace = await session.customRequest("stackTrace", { threadId: testStops[0].threadId });
+    assert.equal(trace.stackFrames[0].line, 12);
+    await session.customRequest("continue", { threadId: testStops[0].threadId });
+    await until(() => testEnded, "the test session to end");
+  } finally {
+    if (!testEnded) {
+      await vscode.debug.stopDebugging();
+    }
+    testTerminated.dispose();
+    testTracker.dispose();
+    vscode.debug.removeBreakpoints([testBreakpoint]);
+  }
 };

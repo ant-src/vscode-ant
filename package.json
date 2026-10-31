@@ -157,10 +157,30 @@
         "title": "Debug File",
         "category": "Ant",
         "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "ant.test.run",
+        "title": "Run Test",
+        "category": "Ant",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "ant.test.debug",
+        "title": "Debug Test",
+        "category": "Ant",
+        "enablement": "isWorkspaceTrusted"
       }
     ],
     "menus": {
       "commandPalette": [
+        {
+          "command": "ant.test.run",
+          "when": "false"
+        },
+        {
+          "command": "ant.test.debug",
+          "when": "false"
+        },
         {
           "command": "ant.runFile",
           "when": "editorLangId == ant"
@@ -198,6 +218,10 @@
           "file": {
             "type": "string",
             "description": "The .ant file to run."
+          },
+          "test": {
+            "type": "string",
+            "description": "Run the tests of file, a test file, with ant test -run and this pattern instead of running it."
           }
         }
       }
@@ -248,6 +272,10 @@
               "stdin": {
                 "type": "string",
                 "description": "A file whose contents are the program's standard input. A relative path is resolved against the workspace folder."
+              },
+              "test": {
+                "type": "string",
+                "description": "A -run pattern, as ant test takes it, choosing the tests to run when program is a test file (one ending in _test.ant)."
               },
               "stopOnEntry": {
                 "type": "boolean",

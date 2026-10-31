@@ -33,6 +33,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("ant.showOutput", () => output.show()),
     vscode.commands.registerCommand("ant.runFile", runFile),
     vscode.commands.registerCommand("ant.debugFile", debugFile),
+    vscode.commands.registerCommand("ant.test.run", runTest),
+    vscode.commands.registerCommand("ant.test.debug", debugTest),
     vscode.debug.registerDebugAdapterDescriptorFactory("ant", { createDebugAdapterDescriptor }),
     vscode.debug.registerDebugConfigurationProvider("ant", { resolveDebugConfiguration, resolveDebugConfigurationWithSubstitutedVariables }),
     vscode.tasks.registerTaskProvider("ant", {
@@ -198,6 +200,7 @@ async function runFile(): Promise<void> {
 interface AntTaskDefinition extends vscode.TaskDefinition {
   type: "ant";
   file: string; // the .ant file to run, relative to the workspace folder
+  test?: string; // when set, the file is a test file and this is the -run pattern of ant test
 }
 
 // resolveAntTask gives a tasks.json task of type ant its execution, so that it runs, can be the
@@ -210,14 +213,16 @@ async function resolveAntTask(task: vscode.Task): Promise<vscode.Task | undefine
   return antTask(def, task.scope ?? vscode.TaskScope.Workspace, task.name);
 }
 
-// antTask builds the task that runs a file with ant run, started as a process with its
-// arguments, so that no shell reads the path. A relative file is taken from the folder.
+// antTask builds the task that runs a file with ant run, or its tests with ant test -run, started
+// as a process with its arguments, so that no shell reads the path or the pattern. A relative file
+// is taken from the folder.
 async function antTask(def: AntTaskDefinition, scope: vscode.WorkspaceFolder | vscode.TaskScope, name: string): Promise<vscode.Task> {
   const folder = typeof scope === "object" ? scope : undefined;
   const cwd = folder?.uri.fsPath ?? (path.isAbsolute(def.file) ? path.dirname(def.file) : undefined);
   const file = cwd ? path.resolve(cwd, def.file) : def.file;
   const ant = (await findAnt()) ?? "ant";
-  const execution = new vscode.ProcessExecution(ant, ["run", file], cwd ? { cwd } : undefined);
+  const args = typeof def.test === "string" ? ["test", "-run", def.test, file] : ["run", file];
+  const execution = new vscode.ProcessExecution(ant, args, cwd ? { cwd } : undefined);
   return new vscode.Task(def, scope, name, "ant", execution, "$ant");
 }
 
@@ -314,5 +319,59 @@ async function debugFile(): Promise<void> {
     request: "launch",
     name: path.basename(file),
     program: file,
+  });
+}
+
+// testFile finds the test file a code lens of ant lsp names and saves it, for ant.test.run and
+// ant.test.debug; it returns undefined, having said why, when the test cannot run.
+async function testFile(uri: unknown, pattern: unknown, what: string): Promise<vscode.TextDocument | undefined> {
+  if (typeof uri !== "string" || typeof pattern !== "string") {
+    vscode.window.showInformationMessage(`Use the code lens above a test to ${what} it.`);
+    return undefined;
+  }
+  if (!vscode.workspace.isTrusted) {
+    vscode.window.showWarningMessage(`${what === "run" ? "Running" : "Debugging"} a test needs a trusted workspace.`);
+    return undefined;
+  }
+  const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(uri));
+  if (doc.uri.scheme !== "file") {
+    vscode.window.showInformationMessage(`Save the file to ${what} its tests.`);
+    return undefined;
+  }
+  if (doc.isDirty && !(await doc.save())) {
+    return undefined;
+  }
+  return doc;
+}
+
+// runTest runs the tests of a test file that pattern selects, as an ant task with ant test -run;
+// it is the command of the code lens run test (spec/lsp.md, Code lenses).
+async function runTest(uri: unknown, pattern: unknown): Promise<void> {
+  const doc = await testFile(uri, pattern, "run");
+  if (!doc) {
+    return;
+  }
+  const file = doc.uri.fsPath;
+  const folder = vscode.workspace.getWorkspaceFolder(doc.uri);
+  const name = `${path.basename(file)}: ${pattern}`;
+  const task = await antTask({ type: "ant", file, test: pattern as string }, folder ?? vscode.TaskScope.Workspace, name);
+  task.presentationOptions = { clear: true, focus: true };
+  await vscode.tasks.executeTask(task);
+}
+
+// debugTest debugs the tests of a test file that pattern selects, with the test attribute of an
+// ant dap launch; it is the command of the code lens debug test (spec/lsp.md, Code lenses).
+async function debugTest(uri: unknown, pattern: unknown): Promise<void> {
+  const doc = await testFile(uri, pattern, "debug");
+  if (!doc) {
+    return;
+  }
+  const file = doc.uri.fsPath;
+  await vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(doc.uri), {
+    type: "ant",
+    request: "launch",
+    name: `${path.basename(file)}: ${pattern}`,
+    program: file,
+    test: pattern,
   });
 }
