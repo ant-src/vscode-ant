@@ -40,6 +40,23 @@ input, and whether to stop on entry; a relative path is resolved against the wor
 }
 ```
 
+## Tests
+
+In a test file, one whose name ends in `_test.ant`, **run test** and **debug test** code lenses
+stand above each test and each subtest with a plain string name. **run test** runs that test alone
+with `ant test -run`; **debug test** debugs it under `ant dap`. A launch configuration does the same
+with `test`, a `-run` pattern, and a test file as its `program`:
+
+```json
+{
+  "type": "ant",
+  "request": "launch",
+  "name": "Debug parse tests",
+  "program": "${workspaceFolder}/parse_test.ant",
+  "test": "^parse$"
+}
+```
+
 ## Tasks
 
 A task of type `ant` in `tasks.json` runs a file with `ant run`, so it can be the default build task
