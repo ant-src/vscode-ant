@@ -91,7 +91,9 @@ test("literals", async () => {
   assert.match(await scopeOf('var s = "cost: \\${n}"', "\\$"), /constant\.character\.escape/);
   // code in an interpolation is not string text, so themes color it as code
   const code = await tokenize('var s = "${Math.round(x) * 2} items"');
-  for (const t of code.lines[0].filter((t) => ["Math", ".", "round", "(", ")", "*", "2"].includes(t.text.trim()))) {
+  const embedded = code.lines[0].filter((t) => t.scopes.includes("meta.embedded.line.ant") && t.text.trim());
+  assert.deepEqual(embedded.map((t) => t.text.trim()), ["Math", ".", "round", "(", "x", ")", "*", "2"]);
+  for (const t of embedded) {
     assert.ok(!t.scopes.some((s) => s.startsWith("string")), JSON.stringify(t));
   }
   for (const text of ['"', "items", "\\n"]) {
