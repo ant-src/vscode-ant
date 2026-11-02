@@ -65,7 +65,8 @@ test("keywords, fields, and reserved words", async () => {
   assert.match(await scopeOf("if a { b } else { c }", "else"), /keyword\.control/);
   assert.doesNotMatch(await scopeOf("event.type", "type"), /storage\.type|keyword/);
   assert.doesNotMatch(await scopeOf("var t = { type: string }", "type"), /storage\.type/);
-  assert.match(await scopeOf("let x = 1", "let"), /invalid\.illegal\.reserved/);
+  assert.match(await scopeOf("let x = 1", "let"), /storage\.type/);
+  assert.match(await scopeOf("const x = 1", "const"), /invalid\.illegal\.reserved/);
   assert.doesNotMatch(await scopeOf("Map{ class: \"a\" }", "class"), /invalid/);
   assert.match(await scopeOf("x is null", "null"), /constant\.language/);
 });

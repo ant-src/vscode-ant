@@ -550,7 +550,7 @@
           }
         },
         {
-          "match": "(?<![\\w.])\\b(var)\\s+([A-Za-z_]\\w*)",
+          "match": "(?<![\\w.])\\b(var|let)\\s+([A-Za-z_]\\w*)",
           "captures": {
             "1": {
               "name": "storage.type.ant"
@@ -583,7 +583,7 @@
           "name": "keyword.control.ant"
         },
         {
-          "match": "(?<![\\w.])\\b(var|func|type|import|export)\\b(?!\\s*:)",
+          "match": "(?<![\\w.])\\b(var|let|func|type|import|export)\\b(?!\\s*:)",
           "name": "storage.type.ant"
         },
         {
@@ -593,7 +593,7 @@
       ]
     },
     "reserved": {
-      "match": "(?<![\\w.])\\b(as|async|await|catch|class|const|enum|finally|function|interface|let|match|switch|this|throw|undefined)\\b(?!\\s*:)",
+      "match": "(?<![\\w.])\\b(as|async|await|catch|class|const|enum|finally|function|interface|match|switch|this|throw|undefined)\\b(?!\\s*:)",
       "name": "invalid.illegal.reserved.ant"
     },
     "constants": {
