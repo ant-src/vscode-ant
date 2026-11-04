@@ -627,7 +627,7 @@
           "name": "support.type.primitive.ant"
         },
         {
-          "match": "(?<![\\w.])\\b(Array|Map|Set|String|Regex|Iter|Math|Bits|Random|Record|Bytes|Html|Mutex|RwMutex|WaitGroup|Once|Cond|Atomic|Context|Channel|File|Http|Net|Path|Time|Os|Cmd|Json|Csv|Encoding|Url|Crypto)\\b",
+          "match": "(?<![\\w.])\\b(Array|Map|Set|String|Regex|Iter|Math|Bits|Random|Record|Bytes|Html|Mutex|RwMutex|WaitGroup|Once|Cond|Atomic|Context|Channel|File|Http|Net|Path|Time|Os|Cmd|Json|Csv|Encoding|Url|Crypto|Reflect)\\b",
           "name": "support.class.ant"
         },
         {

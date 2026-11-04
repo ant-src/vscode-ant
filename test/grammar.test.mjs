@@ -91,6 +91,16 @@ test("declarations", async () => {
   assert.match(await scopeOf("#!/usr/bin/env ant", "#!/usr/bin/env ant"), /comment\.line\.shebang/);
 });
 
+test("type expressions", async () => {
+  // type before ( is a type expression, whose contents are types (section 4, Types as values)
+  assert.match(await scopeOf("var t = type(Array[int] | null)", "type"), /storage\.type/);
+  assert.doesNotMatch(await scopeOf("var t = type(Array[int] | null)", "type"), /entity\.name\.function/);
+  assert.match(await scopeOf("var t = type(Array[int] | null)", "Array"), /support\.class/);
+  assert.match(await scopeOf("var t = type(Array[int] | null)", "int"), /support\.type\.primitive/);
+  assert.match(await scopeOf("var t = type(Point)", "Point"), /entity\.name\.type/);
+  assert.match(await scopeOf("Reflect.shape(t)", "Reflect"), /support\.class/);
+});
+
 test("literals", async () => {
   assert.match(await scopeOf("var n = 1_000_000", "1_000_000"), /constant\.numeric/);
   assert.match(await scopeOf("var n = 0xFF", "0xFF"), /constant\.numeric\.hex/);
