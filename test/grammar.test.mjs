@@ -145,8 +145,16 @@ test("regular expressions and division", async () => {
   assert.match(await scopeOf("return /x/", "x"), /string\.regexp/);
   const { lines } = await tokenize("var q = total / count");
   assert.ok(!lines[0].some((t) => t.scopes.join(" ").includes("string.regexp")), JSON.stringify(lines[0]));
-  const two = await tokenize("var r = (total\n  / count)");
-  assert.ok(!two.lines[1].some((t) => t.scopes.join(" ").includes("string.regexp")), JSON.stringify(two.lines[1]));
+  // a line that starts with a regular expression continues the expression above it
+  for (const src of ["var r =\n  /ab/i", "Regex.replace(\n  /a+b/i,\n  \"x\",\n)", "var ps = [\n  /a/,\n]"]) {
+    const cont = await tokenize(src);
+    assert.ok(cont.lines[1].some((t) => t.scopes.includes("string.regexp.ant") && /^a/.test(t.text)), JSON.stringify(cont.lines[1]));
+  }
+  // a line that starts with / and has no regular expression after it is division
+  for (const src of ["var r = (total\n  / count)", "var q = a\n  / b / c"]) {
+    const div = await tokenize(src);
+    assert.ok(!div.lines[1].some((t) => t.scopes.join(" ").includes("string.regexp")), JSON.stringify(div.lines[1]));
+  }
 });
 
 test("braces nest inside interpolations", async () => {
