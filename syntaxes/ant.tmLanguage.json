@@ -288,8 +288,8 @@
     "markup-element": {
       "patterns": [
         {
-          "begin": "(<)(script)\\b",
-          "end": "(</)(script)\\s*(>)|(/>)",
+          "begin": "(<)((?i:script))(?![\\w-])",
+          "end": "(</)((?i:script))\\s*(>)|(/>)",
           "name": "meta.markup.element.ant",
           "beginCaptures": {
             "1": {
@@ -319,7 +319,7 @@
             },
             {
               "begin": "(?<=>)",
-              "end": "(?=</script)",
+              "end": "(?=</(?i:script)\\s*>)",
               "contentName": "meta.embedded.block.javascript",
               "patterns": [
                 {
@@ -330,8 +330,8 @@
           ]
         },
         {
-          "begin": "(<)(style)\\b",
-          "end": "(</)(style)\\s*(>)|(/>)",
+          "begin": "(<)((?i:style))(?![\\w-])",
+          "end": "(</)((?i:style))\\s*(>)|(/>)",
           "name": "meta.markup.element.ant",
           "beginCaptures": {
             "1": {
@@ -361,7 +361,7 @@
             },
             {
               "begin": "(?<=>)",
-              "end": "(?=</style)",
+              "end": "(?=</(?i:style)\\s*>)",
               "contentName": "meta.embedded.block.css",
               "patterns": [
                 {
@@ -732,8 +732,8 @@
     "markup-raw-start": {
       "patterns": [
         {
-          "begin": "(?:(?<=[=(,\\[{|:?!&>])|(?<=^)|(?<=\\breturn))\\s*(<)(script)\\b",
-          "end": "(</)(script)\\s*(>)|(/>)",
+          "begin": "(?:(?<=[=(,\\[{|:?!&>])|(?<=^)|(?<=\\breturn))\\s*(<)((?i:script))(?![\\w-])",
+          "end": "(</)((?i:script))\\s*(>)|(/>)",
           "name": "meta.markup.element.ant",
           "beginCaptures": {
             "1": {
@@ -763,7 +763,7 @@
             },
             {
               "begin": "(?<=>)",
-              "end": "(?=</script)",
+              "end": "(?=</(?i:script)\\s*>)",
               "contentName": "meta.embedded.block.javascript",
               "patterns": [
                 {
@@ -774,8 +774,8 @@
           ]
         },
         {
-          "begin": "(?:(?<=[=(,\\[{|:?!&>])|(?<=^)|(?<=\\breturn))\\s*(<)(style)\\b",
-          "end": "(</)(style)\\s*(>)|(/>)",
+          "begin": "(?:(?<=[=(,\\[{|:?!&>])|(?<=^)|(?<=\\breturn))\\s*(<)((?i:style))(?![\\w-])",
+          "end": "(</)((?i:style))\\s*(>)|(/>)",
           "name": "meta.markup.element.ant",
           "beginCaptures": {
             "1": {
@@ -805,7 +805,7 @@
             },
             {
               "begin": "(?<=>)",
-              "end": "(?=</style)",
+              "end": "(?=</(?i:style)\\s*>)",
               "contentName": "meta.embedded.block.css",
               "patterns": [
                 {

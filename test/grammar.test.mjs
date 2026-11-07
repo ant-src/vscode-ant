@@ -189,6 +189,22 @@ test("markup", async () => {
   assert.equal(frag.stack.depth, 1);
 });
 
+test("script and style hold raw text, matched ignoring case", async () => {
+  // a custom element whose name starts with script or style is an ordinary element
+  for (const src of ["var h = <script-x>hi</script-x>\nvar y = 1", "var h = <div><style-y>a</style-y></div>\nvar y = 1"]) {
+    const custom = await tokenize(src);
+    const v = custom.lines[1].find((t) => t.text === "var");
+    assert.ok(v && v.scopes.some((s) => s.startsWith("storage.type")), JSON.stringify(custom.lines));
+    assert.equal(custom.stack.depth, 1, src);
+  }
+  for (const src of ["var h = <SCRIPT>if (a < b) { x() }</SCRIPT>\nvar y = 1", "var h = <div><Style>p { x: 1 }</Style></div>\nvar y = 1"]) {
+    const raw = await tokenize(src);
+    assert.ok(!raw.lines[0].some((t) => t.scopes.includes("meta.markup.interpolation.ant")), JSON.stringify(raw.lines[0]));
+    assert.ok(!raw.lines[0].some((t) => t.scopes.some((s) => s.startsWith("keyword.control") || s.startsWith("entity.name.function"))), JSON.stringify(raw.lines[0]));
+    assert.equal(raw.stack.depth, 1, src);
+  }
+});
+
 test("the corpus has no invalid tokens and closes every region", async () => {
   const dirs = ["tests/run", "tests/check", "tests/check/lib", "tests/unchecked", "tests/stdlib", "examples", "examples/lib", "examples/lib/shapes"];
   let files = 0;
