@@ -109,7 +109,7 @@ async function startClient(): Promise<void> {
   } catch (err) {
     output.appendLine(`the server did not start: ${err}`);
     vscode.window.showErrorMessage(`The Ant language server did not start: ${err}`);
-    await c.dispose();
+    await c.dispose().catch(() => {});
   }
 }
 
@@ -117,8 +117,13 @@ async function stopClient(): Promise<void> {
   if (client) {
     const c = client;
     client = undefined;
-    await c.stop();
-    await c.dispose();
+    // dispose stops the client; stop throws when the client is not running, such as after a
+    // failed start, and that must not keep restart from starting a new one.
+    try {
+      await c.dispose();
+    } catch (err) {
+      output.appendLine(`stop failed: ${err}`);
+    }
   }
 }
 
