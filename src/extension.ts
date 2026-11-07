@@ -128,7 +128,8 @@ async function stopClient(): Promise<void> {
 }
 
 // findAnt locates the ant executable: the ant.path setting, then ant on PATH, then $GOBIN, then
-// the bin directory of go env GOPATH, then ~/go/bin. The result is kept until ant.path changes.
+// the bin directory of the first go env GOPATH entry, then ~/go/bin. The result is kept until
+// ant.path changes.
 async function findAnt(): Promise<string | undefined> {
   if (antPath === undefined) {
     antPath = await locateAnt();
@@ -153,7 +154,8 @@ async function locateAnt(): Promise<string | undefined> {
   }
   try {
     const { stdout } = await execFile("go", ["env", "GOPATH"], { encoding: "utf8", timeout: 5000 });
-    const gopath = stdout.trim();
+    // GOPATH may list several directories; go install puts binaries in the first one's bin.
+    const gopath = stdout.trim().split(path.delimiter)[0];
     if (gopath && isExecutable(path.join(gopath, "bin", exe))) {
       return path.join(gopath, "bin", exe);
     }
