@@ -615,6 +615,10 @@
           "name": "constant.numeric.binary.ant"
         },
         {
+          "match": "\\b\\d(?:_?\\d)*(?:\\.\\d(?:_?\\d)*)?(?:h|ms|m|s|us|ns)(?:\\d(?:_?\\d)*(?:\\.\\d(?:_?\\d)*)?(?:h|ms|m|s|us|ns))*\\b",
+          "name": "constant.numeric.duration.ant"
+        },
+        {
           "match": "\\b\\d(?:_?\\d)*(?:\\.\\d(?:_?\\d)*)?(?:e[+-]?\\d(?:_?\\d)*)?\\b",
           "name": "constant.numeric.decimal.ant"
         }

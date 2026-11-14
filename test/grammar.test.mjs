@@ -106,6 +106,9 @@ test("literals", async () => {
   assert.match(await scopeOf("var n = 0xFF", "0xFF"), /constant\.numeric\.hex/);
   assert.match(await scopeOf("var n = 0o755", "0o755"), /constant\.numeric\.octal/);
   assert.match(await scopeOf("var n = 2.5e-3", "2.5e-3"), /constant\.numeric/);
+  assert.match(await scopeOf("Time.sleep(500ms)", "500ms"), /constant\.numeric\.duration/);
+  assert.match(await scopeOf("var d = 1h30.5m", "1h30.5m"), /constant\.numeric\.duration/);
+  assert.match(await scopeOf("var d = 90m.roundDuration()", "90m"), /constant\.numeric\.duration/);
   assert.match(await scopeOf('var s = "a\\nb"', "\\n"), /constant\.character\.escape/);
   assert.match(await scopeOf('var s = "a\\qb"', "\\q"), /invalid\.illegal\.escape/);
   const { lines } = await tokenize('var s = "total: ${count} items"');
