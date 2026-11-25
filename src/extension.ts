@@ -21,7 +21,7 @@ let lifecycle: Promise<void> = Promise.resolve();
 // ant installed later is found by the next restart.
 let antPath: string | undefined;
 
-const antMissing = "The ant executable was not found. Set ant.path, or install it with: go install github.com/ant-src/ant/cmd/ant@latest";
+const antMissing = "The ant executable was not found. Set ant.path, or install it with: go install ant-lang.org/cmd/ant@latest";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   output = vscode.window.createOutputChannel("Ant");

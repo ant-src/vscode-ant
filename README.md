@@ -9,7 +9,7 @@ definition, references, and rename, and debugging through `ant dap`.
 The extension does not bundle `ant`:
 
 ```sh
-go install github.com/ant-src/ant/cmd/ant@latest
+go install ant-lang.org/cmd/ant@latest
 ```
 
 It finds `ant` on `PATH` or in your Go bin directory. Set `ant.path` to use another one.
